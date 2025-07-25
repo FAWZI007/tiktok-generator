@@ -1,0 +1,8 @@
+clips/
+videos/
+*.pyc
+__pycache__/
+.env
+.DS_Store
+ngrok.exe
+*.log

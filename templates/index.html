@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Clips TikTok</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="url"], input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="url"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1e5e9;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.5s;
+        }
+
+        .status-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+
+        .clips-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .clip-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clip-info {
+            flex: 1;
+        }
+
+        .clip-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .clip-time {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .download-btn {
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .emoji {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                padding: 20px;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Générateur TikTok</h1>
+            <p>Créez des clips automatiquement depuis YouTube</p>
+        </div>
+
+        <form id="clipForm">
+            <div class="form-group">
+                <label for="url">🔗 Lien YouTube</label>
+                <input type="url" id="url" name="url" placeholder="https://youtube.com/watch?v=..." required>
+            </div>
+
+            <div class="form-group">
+                <label for="duration">⏱️ Durée de chaque clip (secondes)</label>
+                <input type="number" id="duration" name="duration" value="30" min="5" max="120" required>
+            </div>
+
+            <div class="form-group">
+                <label for="num_clips">📱 Nombre de clips à générer</label>
+                <input type="number" id="num_clips" name="num_clips" value="3" min="1" max="5" required>
+            </div>
+
+            <button type="submit" class="button" id="generateBtn">
+                <span class="emoji">🚀</span>Générer les clips
+            </button>
+        </form>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-text" id="statusText">Initialisation...</div>
+        </div>
+
+        <div class="clips-container" id="clipsContainer">
+            <h3>📥 Clips générés</h3>
+            <div id="clipsList"></div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let statusInterval = null;
+
+        document.getElementById('clipForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                url: formData.get('url'),
+                duration: formData.get('duration'),
+                num_clips: formData.get('num_clips')
+            };
+
+            // Réinitialiser l'interface
+            hideError();
+            hideClips();
+            showProgress();
+            disableForm();
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                currentTaskId = result.task_id;
+                
+                // Commencer à vérifier le statut
+                statusInterval = setInterval(checkStatus, 1000);
+                
+            } catch (error) {
+                showError('Erreur lors du lancement de la génération: ' + error.message);
+                enableForm();
+                hideProgress();
+            }
+        });
+
+        async function checkStatus() {
+            if (!currentTaskId) return;
+
+            try {
+                const response = await fetch(`/status/${currentTaskId}`);
+                const status = await response.json();
+
+                updateProgress(status.progress || 0);
+                updateStatusText(status.status);
+
+                if (status.status === 'completed') {
+                    clearInterval(statusInterval);
+                    hideProgress();
+                    showClips(status.clips);
+                    enableForm();
+                } else if (status.status === 'error') {
+                    clearInterval(statusInterval);
+                    hideProgress();
+                    showError('Erreur: ' + status.error);
+                    enableForm();
+                }
+            } catch (error) {
+                clearInterval(statusInterval);
+                hideProgress();
+                showError('Erreur lors de la vérification du statut');
+                enableForm();
+            }
+        }
+
+        function updateProgress(progress) {
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function updateStatusText(status) {
+            const statusTexts = {
+                'pending': '⏳ En attente...',
+                'downloading': '📥 Téléchargement de la vidéo...',
+                'analyzing': '🔍 Analyse des moments forts...',
+                'generating': '🎬 Génération des clips...',
+                'completed': '✅ Terminé!',
+                'error': '❌ Erreur'
+            };
+            
+            document.getElementById('statusText').textContent = statusTexts[status] || status;
+        }
+
+        function showProgress() {
+            document.getElementById('progressContainer').style.display = 'block';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+
+        function showClips(clips) {
+            const container = document.getElementById('clipsContainer');
+            const list = document.getElementById('clipsList');
+            
+            list.innerHTML = '';
+            
+            clips.forEach((clip, index) => {
+                const minutes = Math.floor(clip.start_time / 60);
+                const seconds = Math.floor(clip.start_time % 60);
+                const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                const clipElement = document.createElement('div');
+                clipElement.className = 'clip-item';
+                clipElement.innerHTML = `
+                    <div class="clip-info">
+                        <div class="clip-title">Clip ${index + 1}</div>
+                        <div class="clip-time">Début: ${timeStr} • Durée: ${clip.duration}s</div>
+                    </div>
+                    <a href="/download/${clip.filename}" class="download-btn" download>
+                        📱 Télécharger
+                    </a>
+                `;
+                list.appendChild(clipElement);
+            });
+            
+            container.style.display = 'block';
+        }
+
+        function hideClips() {
+            document.getElementById('clipsContainer').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function disableForm() {
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').innerHTML = '<span class="emoji">⏳</span>Génération en cours...';
+        }
+
+        function enableForm() {
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('generateBtn').innerHTML = '<span class="emoji">🚀</span>Générer les clips';
+        }
+    </script>
+</body>
+</html>
