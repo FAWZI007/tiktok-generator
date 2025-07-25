@@ -1,8 +1,23 @@
+# Dossiers de vidéos (fichiers volumineux)
 clips/
 videos/
+
+# Fichiers vidéo volumineux 
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Fichiers Python temporaires
 *.pyc
 __pycache__/
+
+# Fichiers système
 .env
 .DS_Store
+
+# Outils locaux
 ngrok.exe
+
+# Logs
 *.log
