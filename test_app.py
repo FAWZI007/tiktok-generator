@@ -1,4 +1,6 @@
-from flask import Flask
+from flask import Flask, jsonify, request
+import os
+import sys
 
 app = Flask(__name__)
 
@@ -8,6 +10,89 @@ def test():
     <!DOCTYPE html>
     <html>
     <head>
+        <title>🧪 Test TikTok Generator</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <h1>🧪 Test TikTok Generator</h1>
+        <p>Test pour diagnostiquer le problème</p>
+        
+        <button onclick="testHealth()">Test Health</button>
+        <button onclick="testGenerate()">Test Generate</button>
+        
+        <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+        
+        <script>
+        async function testHealth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Test Health...';
+            
+            try {
+                const response = await fetch('/test-health');
+                const result = await response.json();
+                resultDiv.innerHTML = '<h3>✅ Health OK</h3><pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (error) {
+                resultDiv.innerHTML = '❌ Erreur Health: ' + error.message;
+            }
+        }
+        
+        async function testGenerate() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Test Generate...';
+            
+            try {
+                const response = await fetch('/test-generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                        duration: 30,
+                        num_clips: 1
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                resultDiv.innerHTML = '<h3>✅ Generate OK</h3><pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = '❌ Erreur Generate: ' + error.message;
+            }
+        }
+        </script>
+    </body>
+    </html>
+    '''
+
+@app.route('/test-health')
+def test_health():
+    try:
+        return jsonify({
+            'status': 'healthy',
+            'python_version': sys.version,
+            'working_directory': os.getcwd(),
+            'files_in_directory': os.listdir('.'),
+            'environment_port': os.environ.get('PORT', 'Not set')
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test-generate', methods=['POST'])
+def test_generate():
+    try:
+        data = request.json
+        return jsonify({
+            'status': 'success',
+            'message': 'Generate endpoint fonctionne!',
+            'received_data': data,
+            'validation': 'URL validation would happen here'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
         <title>Test TikTok Generator</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
