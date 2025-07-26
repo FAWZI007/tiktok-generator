@@ -21,6 +21,24 @@ def health():
 # Stockage des tâches en cours
 tasks = {}
 
+# Fonction pour nettoyer les anciens fichiers au démarrage
+def cleanup_old_files():
+    try:
+        # Nettoyer les anciens clips
+        for filename in os.listdir('clips'):
+            if filename.endswith('.mp4'):
+                os.remove(os.path.join('clips', filename))
+        
+        # Nettoyer les anciennes vidéos
+        for filename in os.listdir('videos'):
+            if filename.endswith('.mp4'):
+                os.remove(os.path.join('videos', filename))
+    except Exception as e:
+        print(f"Erreur lors du nettoyage: {e}")
+
+# Nettoyer au démarrage
+cleanup_old_files()
+
 def download_video(url, output_path):
     ydl_opts = {
         'format': 'best[height<=1080]/best',  # Meilleure qualité jusqu'à 1080p
@@ -187,9 +205,12 @@ def generate_clips():
 
 @app.route('/status/<task_id>')
 def get_status(task_id):
-    if task_id in tasks:
-        return jsonify(tasks[task_id])
-    return jsonify({'status': 'not_found'}), 404
+    try:
+        if task_id in tasks:
+            return jsonify(tasks[task_id])
+        return jsonify({'status': 'not_found', 'error': 'Task not found'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/download/<filename>')
 def download_clip(filename):
