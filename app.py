@@ -40,17 +40,39 @@ def cleanup_old_files():
 cleanup_old_files()
 
 def download_video(url, output_path):
-    ydl_opts = {
-        'format': 'best[height<=1080]/best',  # Meilleure qualité jusqu'à 1080p
-        'outtmpl': output_path,
-        'quiet': True,
-        'writesubtitles': False,
-        'writeautomaticsub': False,
-        'ignoreerrors': True,
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-    return True
+    try:
+        # Valider que l'URL est bien YouTube
+        if not any(domain in url.lower() for domain in ['youtube.com', 'youtu.be']):
+            raise ValueError("URL non supportée. Utilisez une URL YouTube.")
+        
+        ydl_opts = {
+            'format': 'best[height<=1080]/best',  # Meilleure qualité jusqu'à 1080p
+            'outtmpl': output_path,
+            'quiet': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'ignoreerrors': False,  # Ne pas ignorer les erreurs pour mieux diagnostiquer
+            'no_warnings': True,
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            # Vérifier d'abord si la vidéo existe
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                raise ValueError("Impossible d'extraire les informations de la vidéo")
+            
+            # Télécharger la vidéo
+            ydl.download([url])
+            
+            # Vérifier que le fichier a bien été créé
+            if not os.path.exists(output_path):
+                raise ValueError("Le téléchargement a échoué - fichier non créé")
+                
+        return True
+        
+    except Exception as e:
+        print(f"Erreur lors du téléchargement: {e}")
+        raise
 
 def analyze_audio_peaks(video_file, segment_duration=10, min_gap=5):
     # Obtenir la durée totale
@@ -140,13 +162,20 @@ def process_video_task(task_id, url, duration, num_clips):
         
         # Télécharger la vidéo
         video_filename = f'videos/video_{task_id}.mp4'
-        download_video(url, video_filename)
+        try:
+            download_video(url, video_filename)
+        except Exception as e:
+            raise Exception(f"Impossible de télécharger la vidéo: {str(e)}")
         
         tasks[task_id]['status'] = 'analyzing'
         tasks[task_id]['progress'] = 30
         
         # Analyser la vidéo
-        best_moments = analyze_audio_peaks(video_filename)
+        try:
+            best_moments = analyze_audio_peaks(video_filename)
+        except Exception as e:
+            print(f"Erreur analyse audio: {e}")
+            best_moments = []
         
         if not best_moments:
             best_moments = [{'start_time': 0, 'rms_level': -30}]
@@ -158,24 +187,33 @@ def process_video_task(task_id, url, duration, num_clips):
         # Générer les clips
         max_clips = min(len(best_moments), num_clips)
         for i in range(max_clips):
-            moment = best_moments[i]
-            start_time = moment['start_time']
-            clip_filename = f'clips/clip_{task_id}_{i+1}.mp4'
-            
-            cut_clip(video_filename, start_time, duration, clip_filename)
-            
-            tasks[task_id]['clips'].append({
-                'filename': f'clip_{task_id}_{i+1}.mp4',
-                'start_time': start_time,
-                'duration': duration
-            })
-            
-            tasks[task_id]['progress'] = 50 + (40 * (i + 1) / max_clips)
+            try:
+                moment = best_moments[i]
+                start_time = moment['start_time']
+                clip_filename = f'clips/clip_{task_id}_{i+1}.mp4'
+                
+                cut_clip(video_filename, start_time, duration, clip_filename)
+                
+                tasks[task_id]['clips'].append({
+                    'filename': f'clip_{task_id}_{i+1}.mp4',
+                    'start_time': start_time,
+                    'duration': duration
+                })
+                
+                tasks[task_id]['progress'] = 50 + (40 * (i + 1) / max_clips)
+                
+            except Exception as e:
+                print(f"Erreur génération clip {i+1}: {e}")
+                continue
+        
+        if not tasks[task_id]['clips']:
+            raise Exception("Aucun clip n'a pu être généré")
         
         tasks[task_id]['status'] = 'completed'
         tasks[task_id]['progress'] = 100
         
     except Exception as e:
+        print(f"Erreur dans process_video_task: {e}")
         tasks[task_id]['status'] = 'error'
         tasks[task_id]['error'] = str(e)
 
@@ -193,6 +231,16 @@ def generate_clips():
         url = data.get('url')
         if not url:
             return jsonify({'error': 'URL manquante'}), 400
+        
+        # Validation stricte de l'URL YouTube
+        if not any(domain in url.lower() for domain in ['youtube.com', 'youtu.be']):
+            return jsonify({'error': 'URL invalide. Utilisez une URL YouTube (youtube.com ou youtu.be)'}), 400
+        
+        # Vérifier que l'URL contient bien un ID de vidéo
+        if 'youtube.com' in url and 'v=' not in url:
+            return jsonify({'error': 'URL YouTube invalide. Assurez-vous qu\'elle contient l\'ID de la vidéo (v=...)'}), 400
+        if 'youtu.be' in url and len(url.split('/')[-1]) < 10:
+            return jsonify({'error': 'URL YouTube courte invalide'}), 400
             
         duration = float(data.get('duration', 30))
         num_clips = int(data.get('num_clips', 3))
