@@ -185,23 +185,39 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate_clips():
-    data = request.json
-    url = data.get('url')
-    duration = float(data.get('duration', 30))
-    num_clips = int(data.get('num_clips', 3))
-    
-    task_id = str(uuid.uuid4())
-    tasks[task_id] = {
-        'status': 'pending',
-        'progress': 0,
-        'clips': []
-    }
-    
-    # Lancer le traitement en arrière-plan
-    thread = threading.Thread(target=process_video_task, args=(task_id, url, duration, num_clips))
-    thread.start()
-    
-    return jsonify({'task_id': task_id})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'Aucune donnée JSON reçue'}), 400
+            
+        url = data.get('url')
+        if not url:
+            return jsonify({'error': 'URL manquante'}), 400
+            
+        duration = float(data.get('duration', 30))
+        num_clips = int(data.get('num_clips', 3))
+        
+        # Valider les paramètres
+        if duration < 5 or duration > 120:
+            return jsonify({'error': 'Durée invalide (5-120 secondes)'}), 400
+        if num_clips < 1 or num_clips > 5:
+            return jsonify({'error': 'Nombre de clips invalide (1-5)'}), 400
+        
+        task_id = str(uuid.uuid4())
+        tasks[task_id] = {
+            'status': 'pending',
+            'progress': 0,
+            'clips': []
+        }
+        
+        # Lancer le traitement en arrière-plan
+        thread = threading.Thread(target=process_video_task, args=(task_id, url, duration, num_clips))
+        thread.start()
+        
+        return jsonify({'task_id': task_id})
+        
+    except Exception as e:
+        return jsonify({'error': f'Erreur serveur: {str(e)}'}), 500
 
 @app.route('/status/<task_id>')
 def get_status(task_id):

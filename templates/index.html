@@ -254,14 +254,29 @@
                     body: JSON.stringify(data)
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Le serveur a renvoyé une réponse non-JSON (possible erreur serveur)');
+                }
+
                 const result = await response.json();
+                
+                if (!result.task_id) {
+                    throw new Error('Aucun ID de tâche reçu du serveur');
+                }
+                
                 currentTaskId = result.task_id;
                 
                 // Commencer à vérifier le statut
                 statusInterval = setInterval(checkStatus, 1000);
                 
             } catch (error) {
-                showError('Erreur lors du lancement de la génération: ' + error.message);
+                console.error('Erreur détaillée:', error);
+                showError('Erreur lors du lancement de la génération: ' + error.message + '. Veuillez réessayer dans quelques instants.');
                 enableForm();
                 hideProgress();
             }
@@ -272,6 +287,11 @@
 
             try {
                 const response = await fetch(`/status/${currentTaskId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const status = await response.json();
 
                 updateProgress(status.progress || 0);
@@ -282,12 +302,23 @@
                     hideProgress();
                     showClips(status.clips);
                     enableForm();
-                } else if (status.status === 'error') {
+                } else if (status.status === 'error' || status.status === 'not_found') {
                     clearInterval(statusInterval);
                     hideProgress();
-                    showError('Erreur: ' + status.error);
+                    if (status.status === 'not_found') {
+                        showError('La tâche a été perdue (redémarrage serveur). Veuillez relancer le traitement.');
+                    } else {
+                        showError('Erreur: ' + (status.error || 'Erreur inconnue'));
+                    }
                     enableForm();
                 }
+            } catch (error) {
+                console.error('Erreur lors de la vérification du statut:', error);
+                clearInterval(statusInterval);
+                hideProgress();
+                showError('Erreur lors de la vérification du statut. Le serveur pourrait avoir redémarré.');
+                enableForm();
+            }
             } catch (error) {
                 clearInterval(statusInterval);
                 hideProgress();
