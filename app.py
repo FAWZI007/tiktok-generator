@@ -98,21 +98,17 @@ def cut_clip(input_file, start_time, duration, output_file):
         '-ss', str(start_time),
         '-i', input_file,
         '-t', str(duration),
-        # Amélioration de la qualité vidéo
-        '-vf', 'scale=720:1280:flags=lanczos,setsar=1',  # Meilleur algorithme de redimensionnement
-        '-c:v', 'libx264',           # Codec vidéo de haute qualité
-        '-preset', 'slow',           # Preset pour meilleure qualité
-        '-crf', '18',               # Facteur de qualité constant (18 = très haute qualité)
-        '-profile:v', 'high',        # Profil H.264 haute qualité
-        '-level:v', '4.1',          # Niveau de compatibilité
-        '-pix_fmt', 'yuv420p',      # Format de pixel compatible
-        # Amélioration de l'audio
-        '-c:a', 'aac',              # Codec audio de qualité
-        '-b:a', '128k',             # Bitrate audio élevé
-        '-ar', '44100',             # Fréquence d'échantillonnage standard
-        '-ac', '2',                 # Stéréo
+        # Configuration compatible pour serveurs gratuits
+        '-vf', 'scale=720:1280',    # Redimensionnement simple
+        '-c:v', 'libx264',          # Codec vidéo standard
+        '-preset', 'fast',          # Preset rapide pour serveur gratuit
+        '-crf', '23',              # Qualité normale (plus compatible)
+        '-pix_fmt', 'yuv420p',     # Format de pixel standard
+        # Audio simplifié
+        '-c:a', 'aac',             # Codec audio standard
+        '-b:a', '96k',             # Bitrate audio normal
         # Options générales
-        '-movflags', '+faststart',   # Optimisation pour streaming
+        '-movflags', '+faststart',  # Optimisation pour streaming
         '-y',                       # Remplacer le fichier de sortie
         output_file
     ]
